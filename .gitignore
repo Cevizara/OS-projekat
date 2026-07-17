@@ -1,0 +1,17 @@
+# Build artefakti (rezultat prevođenja/povezivanja)
+build/
+kernel
+kernel.asm
+*.o
+*.d
+*.lst
+
+# Debug
+.gdbinit
+
+# IDE (CLion)
+.idea/
+
+# OS smeće
+.DS_Store
+Thumbs.db

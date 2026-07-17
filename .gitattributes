@@ -1,0 +1,5 @@
+# Drži izvorni kod na LF (build je na Linuxu)
+* text=auto eol=lf
+
+# Binarne biblioteke NE dirati (da se ne pokvare)
+*.lib binary
