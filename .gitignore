@@ -15,3 +15,6 @@ kernel.asm
 # OS smeće
 .DS_Store
 Thumbs.db
+
+# Testovi (ne ulaze u predaju projekta)
+test/
