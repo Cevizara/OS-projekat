@@ -1,46 +1,58 @@
 //
-// Korak 2 test: proveri ceo lanac memorije
-// mem_alloc -> syscall -> ecall -> handleTrap -> __mem_alloc (mem.lib) -> nazad.
+// Korak 5g test: dve korisnicke niti koje se smenjuju (sinhrona promena konteksta).
+// Svaka ispisuje svoje slovo preko putc (syscall) i ustupa procesor (thread_dispatch).
 //
 
 #include "../lib/hw.h"
 #include "../h/print.hpp"
 #include "../h/riscv.hpp"
 #include "../h/syscall_c.hpp"
+#include "../h/_thread.hpp"
 
 static void haltQemu() {
     *(volatile uint32*)0x100000 = 0x5555;
 }
 
+static volatile bool doneA = false;
+static volatile bool doneB = false;
+
+// Tela niti se izvrsavaju u KORISNICKOM rezimu -> ispis ide preko putc (syscall),
+// NE preko kernelprintString (koji je privilegovan).
+static void workerA(void*) {
+    for (int i = 0; i < 5; i++) {
+        putc('A');
+        thread_dispatch();     // dobrovoljno ustupi procesor
+    }
+    doneA = true;
+}
+
+static void workerB(void*) {
+    for (int i = 0; i < 5; i++) {
+        putc('B');
+        thread_dispatch();
+    }
+    doneB = true;
+}
+
 int main() {
-    Riscv::init();                 // stvec -> trapEntry (da bi ecall radio)
+    Riscv::init();
 
-    kernelprintString("=== Test memorije ===\n");
+    // Glavna nit predstavlja boot kontekst (body=nullptr -> nema pocetni kontekst).
+    _thread mainThread(nullptr, nullptr, nullptr);
+    _thread::running = &mainThread;
 
-    // granice heap-a (samo za uvid da je pokazivac u tom opsegu)
-    kernelprintString("HEAP_START = "); kernelprintInteger((uint64)HEAP_START_ADDR); kernelprintString("\n");
-    kernelprintString("HEAP_END   = "); kernelprintInteger((uint64)HEAP_END_ADDR);   kernelprintString("\n");
+    thread_t tA, tB;
+    thread_create(&tA, workerA, nullptr);
+    thread_create(&tB, workerB, nullptr);
 
-    // 1) alociraj 100 bajtova
-    void* p = mem_alloc(100);
-    kernelprintString("mem_alloc(100) -> "); kernelprintInteger((uint64)p); kernelprintString("\n");
+    kernelprintString("Start:\n");
 
-    if (p != nullptr) {
-        // 2) upisi i procitaj -> dokaz da je memorija upotrebljiva
-        int* a = (int*)p;
-        a[0] = 42;
-        a[1] = 1234;
-        kernelprintString("a[0] = "); kernelprintInteger((uint64)a[0]); kernelprintString("\n");
-        kernelprintString("a[1] = "); kernelprintInteger((uint64)a[1]); kernelprintString("\n");
-
-        // 3) oslobodi
-        int r = mem_free(p);
-        kernelprintString("mem_free -> "); kernelprintInteger((uint64)r); kernelprintString("\n");
-    } else {
-        kernelprintString("GRESKA: mem_alloc vratio nullptr\n");
+    // main (sistemski rezim) ustupa procesor dok se obe niti ne zavrse
+    while (!(doneA && doneB)) {
+        thread_dispatch();
     }
 
-    kernelprintString("=== Kraj ===\n");
+    kernelprintString("\nGotovo!\n");
     haltQemu();
     return 0;
 }

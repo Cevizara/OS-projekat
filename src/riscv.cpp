@@ -13,3 +13,11 @@ void Riscv::init() {
     // -> MODE = 0 = direktni režim (jedna rutina za sve uzroke).
     w_stvec((uint64)&trapEntry);
 }
+
+// Prelazak u korisnicki rezim: sepc <- ra, pa sret.
+// MORA biti non-inline: oslanja se na to da je pozvana kao funkcija,
+// pa ra drzi povratnu adresu u pozivaoca (threadWrapper).
+void Riscv::popSppSpie() {
+    __asm__ volatile ("csrw sepc, ra");
+    __asm__ volatile ("sret");
+}

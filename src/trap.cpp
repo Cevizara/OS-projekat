@@ -1,40 +1,82 @@
 //
-// C deo prekidne rutine. Za sada samo prepoznaje uzrok i (za ecall)
-// pomera sepc za 4 da se ne bi ecall izvrsavao u beskonacnoj petlji.
-// Kasnije ce ovde biti razgranati skok po kodu sistemskog poziva.
+// C deo prekidne rutine: razgranati skok po uzroku (scause) i kodu poziva.
+// Za ecall: pozovi odgovarajucu uslugu jezgra, upisi povratnu vrednost u a0, sepc+=4.
 //
 
 #include "../h/riscv.hpp"
 #include "../h/print.hpp"
 #include "../lib/mem.h"
+#include "../lib/console.h"      // __putc (za CALL_PUTC)
+#include "../h/syscall_enum.hpp"
+#include "../h/_thread.hpp"
 
 extern "C" void handleTrap(uint64* regs) {
     uint64 scause = Riscv::r_scause();
 
-    if (scause == 0x08UL || scause == 0x09UL) {
-        uint64 kod=regs[10]
-        uint64 ret  = (uint64)-1;
+    // Sacuvaj sepc i sstatus na ULAZU (kao lokalne, na steku ove niti).
+    // Ako se unutar obrade desi promena konteksta, druge niti ce promeniti
+    // globalne sepc/sstatus; ove lokalne kopije nam cuvaju NASE vrednosti.
+    uint64 sepc    = Riscv::r_sepc();
+    uint64 sstatus = Riscv::r_sstatus();
 
-        switch(kod){
-            case CALL_MEM_ALLOC:{
-                size_t blocks=(size_t) regs[11];
-                ret=(uint64)_mem_alloc(blocks * MEM_BLOCK_SIZE)
+    if (scause == 0x08UL || scause == 0x09UL) {   // ecall (korisnicki / sistemski)
+        uint64 kod = regs[10];                     // a0 = kod sistemskog poziva
+        uint64 ret = (uint64)-1;
+
+        switch (kod) {
+            case CALL_MEM_ALLOC: {
+                size_t blocks = (size_t)regs[11];  // a1 = broj blokova
+                ret = (uint64)__mem_alloc(blocks * MEM_BLOCK_SIZE);
                 break;
             }
             case CALL_MEM_FREE: {
-                ret = (uint64)__mem_free((void*)regs[11]);
+                ret = (uint64)__mem_free((void*)regs[11]);   // a1 = pokazivac
+                break;
+            }
+            case CALL_THREAD_CREATE: {
+                _thread**     handle = (_thread**)regs[11];       // a1 = &handle
+                _thread::Body body   = (_thread::Body)regs[12];   // a2 = telo
+                void*         arg    = (void*)regs[13];           // a3 = argument
+                void*         stack  = (void*)regs[14];           // a4 = vrh steka
+                ret = (uint64)_thread::createThread(handle, body, arg, stack);
+                break;
+            }
+            case CALL_THREAD_DISPATCH: {
+                _thread::dispatch();
+                ret = 0;
+                break;
+            }
+            case CALL_THREAD_EXIT: {
+                ret = (uint64)_thread::exit();
+                break;
+            }
+            case CALL_GETC: {
+                ret = (uint64)__getc();
+                break;
+            }
+            case CALL_PUTC: {
+                __putc((char)regs[11]);   // a1 = znak; koristimo console.lib
+                ret = 0;
                 break;
             }
             default:
-                ret = (uint64)-1;    // nepoznat/neimplementiran poziv
+                ret = (uint64)-1;    // nepoznat / neimplementiran poziv
                 break;
         }
-        regs[10]= ret;
 
-        // preskoci ecall instrukciju (4 bajta) da se ne ponavlja
-        uint64 sepc = Riscv::r_sepc();
-        Riscv::w_sepc(sepc + 4);
-    } else {
+        regs[10] = ret;                          // povratna vrednost -> a0
+        Riscv::w_sepc(sepc + 4);                 // vrati SACUVANI sepc + 4 (preskoci ecall)
+        Riscv::w_sstatus(sstatus);               // vrati SACUVANI sstatus (SPP/SPIE ove niti)
+    }
+    else if (scause == 0x8000000000000001UL) {   // tajmer (softverski prekid)
+        // Za 20 poena: samo POTVRDI prekid, BEZ promene konteksta (nema preotimanja).
+        // Bez ovoga isti prekid odmah ponovo okida -> beskonacna petlja.
+        Riscv::mc_sip(Riscv::SIP_SSIP);
+    }
+    else if (scause == 0x8000000000000009UL) {   // spoljasnji prekid (konzola)
+        console_handler();                        // iz console.lib (za getc/putc kasnije)
+    }
+    else {
         kernelprintString("[trap] NEPOZNAT uzrok, scause=");
         kernelprintInteger(scause);
         kernelprintString("\n");

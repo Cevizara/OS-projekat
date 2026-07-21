@@ -16,5 +16,20 @@ uint64 syscall(uint64 code, uint64 argument1 = 0, uint64 argument2 = 0,
 void* mem_alloc(size_t size);
 int   mem_free(void* ptr);
 
+// --- Niti ---
+class _thread;
+typedef _thread* thread_t;   // "rucka" niti (ime _thread je propisano C API-jem)
+
+class _sem;
+typedef _sem* sem_t;         // rucka semafora; implementacija dolazi u Tasku 3
+
+int  thread_create(thread_t* handle, void (*start_routine)(void*), void* arg);
+void thread_dispatch();
+int  thread_exit();
+
+// --- Konzola (preko console.lib) ---
+char getc();
+void putc(char c);
+
 
 #endif // SYSCALL_C_HPP
