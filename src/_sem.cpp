@@ -6,11 +6,15 @@
 #include "../h/_sem.hpp"
 #include "../h/_thread.hpp"
 #include "../h/scheduler.hpp"
-#include "../lib/mem.h"          // __mem_alloc / __mem_free (zameniti u koraku 10)
+#include "../h/MemoryAllocator.hpp"   // nas alokator (blokovi)
 
-// _sem objekti se prave u jezgru -> alokacija preko mem.lib DIREKTNO
-void* _sem::operator new(size_t size) { return __mem_alloc(size); }
-void  _sem::operator delete(void* p)  { __mem_free(p); }
+// _sem objekti se prave u jezgru -> alokacija alokatorom DIREKTNO.
+// size je u BAJTOVIMA -> konverzija u BLOKOVE (nas alokator radi u blokovima).
+void* _sem::operator new(size_t size) {
+    size_t blocks = (size + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE;
+    return MemoryAllocator::_mem_alloc(blocks);
+}
+void  _sem::operator delete(void* p)  { MemoryAllocator::_mem_free(p); }
 
 // --- interne pomocne operacije ---
 

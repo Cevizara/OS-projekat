@@ -4,7 +4,7 @@
 //
 
 #include "../h/_thread.hpp"
-#include "../lib/mem.h"          // __mem_alloc / __mem_free (privremeno; zameniti u koraku 10)
+#include "../h/MemoryAllocator.hpp"   // nas alokator (blokovi)
 #include "../h/riscv.hpp"        // Riscv::mc/ms_sstatus, popSppSpie (prelazak u korisnicki rezim)
 #include "../h/syscall_c.hpp"    // syscall()
 #include "../h/syscall_enum.hpp" // CALL_THREAD_EXIT
@@ -13,15 +13,16 @@
 // definicija statickog clana (jedna jedina tekuca nit)
 _thread* _thread::running = nullptr;
 
-// _thread objekti se prave UNUTAR jezgra -> alociramo preko mem.lib DIREKTNO
+// _thread objekti se prave UNUTAR jezgra -> alociramo alokatorom DIREKTNO
 // (ne globalni new, koji bi zvao mem_alloc syscall -> ugnezdjeni trap).
-// size je u BAJTOVIMA (sizeof(_thread)); __mem_alloc takodje radi u bajtovima.
+// size je u BAJTOVIMA (sizeof(_thread)); nas alokator radi u BLOKOVIMA -> konverzija.
 void* _thread::operator new(size_t size) {
-    return __mem_alloc(size);
+    size_t blocks = (size + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE;
+    return MemoryAllocator::_mem_alloc(blocks);
 }
 
 void _thread::operator delete(void* p) {
-    __mem_free(p);
+    MemoryAllocator::_mem_free(p);
 }
 
 _thread::_thread(Body body, void* arg, void* stack)

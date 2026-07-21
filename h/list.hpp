@@ -1,16 +1,15 @@
 //
 // Genericka jednostruko ulancana lista (drzi pokazivace na T).
 // Koriste je Scheduler (red spremnih) i semafori (red blokiranih).
-// Cvorovi (Elem) se alociraju UNUTAR jezgra -> direktno preko mem.lib
+// Cvorovi (Elem) se alociraju UNUTAR jezgra -> direktno preko MemoryAllocator-a
 // (NE preko sistemskog poziva mem_alloc, jer bismo pravili ugnezdjeni trap).
-// U koraku 10 ce se __mem_alloc/__mem_free zameniti nasim MemoryAllocator-om.
 //
 
 #ifndef LIST_HPP
 #define LIST_HPP
 
 #include "../lib/hw.h"
-#include "../lib/mem.h"
+#include "MemoryAllocator.hpp"
 
 template<typename T>
 class List {
@@ -21,8 +20,11 @@ private:
 
         Elem(T* data, Elem* next) : data(data), next(next) {}
 
-        void* operator new(size_t size) { return __mem_alloc(size); }
-        void  operator delete(void* p)  { __mem_free(p); }
+        void* operator new(size_t size) {
+            size_t blocks = (size + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE;
+            return MemoryAllocator::_mem_alloc(blocks);
+        }
+        void  operator delete(void* p) { MemoryAllocator::_mem_free(p); }
     };
 
     Elem* head;

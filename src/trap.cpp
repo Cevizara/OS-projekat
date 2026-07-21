@@ -5,7 +5,7 @@
 
 #include "../h/riscv.hpp"
 #include "../h/print.hpp"
-#include "../lib/mem.h"
+#include "../h/MemoryAllocator.hpp"
 #include "../lib/console.h"      // __putc (za CALL_PUTC)
 #include "../h/syscall_enum.hpp"
 #include "../h/_thread.hpp"
@@ -26,12 +26,12 @@ extern "C" void handleTrap(uint64* regs) {
 
         switch (kod) {
             case CALL_MEM_ALLOC: {
-                size_t blocks = (size_t)regs[11];  // a1 = broj blokova
-                ret = (uint64)__mem_alloc(blocks * MEM_BLOCK_SIZE);
+                size_t blocks = (size_t)regs[11];  // a1 = broj blokova (ABI nivo)
+                ret = (uint64)MemoryAllocator::_mem_alloc(blocks);
                 break;
             }
             case CALL_MEM_FREE: {
-                ret = (uint64)__mem_free((void*)regs[11]);   // a1 = pokazivac
+                ret = (uint64)MemoryAllocator::_mem_free((void*)regs[11]);   // a1 = pokazivac
                 break;
             }
             case CALL_THREAD_CREATE: {
