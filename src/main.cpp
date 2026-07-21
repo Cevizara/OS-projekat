@@ -1,54 +1,71 @@
 //
-// Korak 5g test: dve korisnicke niti koje se smenjuju (sinhrona promena konteksta).
-// Svaka ispisuje svoje slovo preko putc (syscall) i ustupa procesor (thread_dispatch).
+// Korak 9 test: C++ API (Thread preko nasledjivanja + run(), Semaphore).
+// Semafori se prave preko POKAZIVACA + new (kao u javnim testovima), a NE kao
+// globalni objekti - da se ne generise __cxa_atexit (nema stdlib runtime-a).
 //
 
 #include "../lib/hw.h"
 #include "../h/print.hpp"
 #include "../h/riscv.hpp"
 #include "../h/syscall_c.hpp"
+#include "../h/syscall_cpp.hpp"
 #include "../h/_thread.hpp"
 
 static void haltQemu() {
     *(volatile uint32*)0x100000 = 0x5555;
 }
 
-static volatile bool doneA = false;
-static volatile bool doneB = false;
+// globalni POKAZIVACI (nemaju destruktor -> nema __cxa_atexit)
+static Semaphore* prazno;
+static Semaphore* puno;
+static volatile int bafer = -1;
+static volatile bool gotovo = false;
 
-// Tela niti se izvrsavaju u KORISNICKOM rezimu -> ispis ide preko putc (syscall),
-// NE preko kernelprintString (koji je privilegovan).
-static void workerA(void*) {
-    for (int i = 0; i < 5; i++) {
-        putc('A');
-        thread_dispatch();     // dobrovoljno ustupi procesor
+// Nit preko NASLEDJIVANJA: izvedi klasu i preklopi run().
+class Proizvodjac : public Thread {
+protected:
+    void run() override {
+        for (int i = 1; i <= 5; i++) {
+            prazno->wait();
+            bafer = i;
+            putc('P'); putc('0' + i);
+            puno->signal();
+            Thread::dispatch();
+        }
     }
-    doneA = true;
-}
+};
 
-static void workerB(void*) {
-    for (int i = 0; i < 5; i++) {
-        putc('B');
-        thread_dispatch();
+class Potrosac : public Thread {
+protected:
+    void run() override {
+        for (int i = 1; i <= 5; i++) {
+            puno->wait();
+            int x = bafer;
+            putc('C'); putc('0' + x);
+            prazno->signal();
+            Thread::dispatch();
+        }
+        gotovo = true;
     }
-    doneB = true;
-}
+};
 
 int main() {
     Riscv::init();
 
-    // Glavna nit predstavlja boot kontekst (body=nullptr -> nema pocetni kontekst).
     _thread mainThread(nullptr, nullptr, nullptr);
     _thread::running = &mainThread;
 
-    thread_t tA, tB;
-    thread_create(&tA, workerA, nullptr);
-    thread_create(&tB, workerB, nullptr);
+    prazno = new Semaphore(1);   // 1 slobodno mesto; global new -> mem_alloc
+    puno   = new Semaphore(0);   // nema podatka
 
     kernelprintString("Start:\n");
 
-    // main (sistemski rezim) ustupa procesor dok se obe niti ne zavrse
-    while (!(doneA && doneB)) {
+    Proizvodjac p;
+    Potrosac    c;
+    p.start();       // tek start() stvarno kreira nit
+    c.start();
+
+    while (!gotovo) {
         thread_dispatch();
     }
 

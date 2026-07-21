@@ -28,7 +28,9 @@ _thread::_thread(Body body, void* arg, void* stack)
     : body(body), arg(arg), stack(stack),
       context({0, 0}),
       finished(false),
-      blocked(false)
+      blocked(false),
+      semResult(0),
+      semAmount(0)
 {
     // Postavi POCETNI kontekst: nit prvi put krece od threadWrapper-a.
     // Glavna (main) nit ima body==nullptr i stack==nullptr -> preskoci;
@@ -66,6 +68,11 @@ bool _thread::isBlocked()         { return blocked; }
 void _thread::setBlocked(bool b)  { blocked = b; }
 
 _thread::Context* _thread::getContext() { return &context; }
+
+long long _thread::getSemResult()          { return semResult; }
+void      _thread::setSemResult(long long r){ semResult = r; }
+long long _thread::getSemAmount()          { return semAmount; }
+void      _thread::setSemAmount(long long n){ semAmount = n; }
 
 // Napravi nit: alociraj objekat (operator new -> mem.lib), postavi kontekst
 // (konstruktor), i ubaci je u red spremnih.

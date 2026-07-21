@@ -74,10 +74,34 @@ int thread_exit() {
     return (int)syscall(CALL_THREAD_EXIT);
 }
 
+// --- Semafori ---
+int sem_open(sem_t* handle, unsigned init) {
+    return (int)syscall(CALL_SEM_OPEN, (uint64)handle, (uint64)init);
+}
+int sem_close(sem_t handle) {
+    return (int)syscall(CALL_SEM_CLOSE, (uint64)handle);
+}
+int sem_wait(sem_t id) {
+    return (int)syscall(CALL_SEM_WAIT, (uint64)id);
+}
+int sem_signal(sem_t id) {
+    return (int)syscall(CALL_SEM_SIGNAL, (uint64)id);
+}
+int sem_wait_n(sem_t id, unsigned n) {
+    return (int)syscall(CALL_SEM_WAIT_N, (uint64)id, (uint64)n);
+}
+int sem_signal_n(sem_t id, unsigned n) {
+    return (int)syscall(CALL_SEM_SIGNAL_N, (uint64)id, (uint64)n);
+}
+
 char getc() {
     return (char)syscall(CALL_GETC);
 }
 
 void putc(char c) {
     syscall(CALL_PUTC, (uint64)c);
+}
+
+int time_sleep(time_t t) {
+    return (int)syscall(CALL_TIME_SLEEP, (uint64)t);
 }

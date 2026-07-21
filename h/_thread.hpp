@@ -29,6 +29,14 @@ public:
     void setBlocked(bool b);
     Context* getContext();
 
+    // --- protokol blokiranja na semaforu (KORAK 8) ---
+    // semafor upisuje niti rezultat cekanja (0=probudio signal, -1=zatvoren/greska),
+    // a wait_n pamti koliko jedinica nit trazi
+    long long getSemResult();
+    void      setSemResult(long long r);
+    long long getSemAmount();
+    void      setSemAmount(long long n);
+
     // --- meso (dolazi kasnije) ---
     static int  createThread(_thread** handle, Body body, void* arg, void* stack); // KORAK 5
     static void dispatch();                                                        // KORAK 5
@@ -50,6 +58,8 @@ private:
     Context context;
     bool    finished;
     bool    blocked;
+    long long semResult;   // rezultat wait-a (postavlja semafor)
+    long long semAmount;   // koliko jedinica nit trazi (za wait_n)
 };
 
 #endif // _THREAD_HPP

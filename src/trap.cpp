@@ -9,6 +9,7 @@
 #include "../lib/console.h"      // __putc (za CALL_PUTC)
 #include "../h/syscall_enum.hpp"
 #include "../h/_thread.hpp"
+#include "../h/_sem.hpp"
 
 extern "C" void handleTrap(uint64* regs) {
     uint64 scause = Riscv::r_scause();
@@ -48,6 +49,43 @@ extern "C" void handleTrap(uint64* regs) {
             }
             case CALL_THREAD_EXIT: {
                 ret = (uint64)_thread::exit();
+                break;
+            }
+            case CALL_SEM_OPEN: {
+                _sem**   handle = (_sem**)regs[11];        // a1 = &handle
+                unsigned init   = (unsigned)regs[12];      // a2 = init
+                ret = (uint64)_sem::open(handle, init);
+                break;
+            }
+            case CALL_SEM_CLOSE: {
+                ret = (uint64)_sem::close((_sem*)regs[11]); // a1 = rucka
+                break;
+            }
+            case CALL_SEM_WAIT: {
+                ret = (uint64)_sem::wait((_sem*)regs[11]);
+                break;
+            }
+            case CALL_SEM_SIGNAL: {
+                ret = (uint64)_sem::signal((_sem*)regs[11]);
+                break;
+            }
+            case CALL_SEM_WAIT_N: {
+                _sem*    id = (_sem*)regs[11];              // a1 = rucka
+                unsigned n  = (unsigned)regs[12];          // a2 = n
+                ret = (uint64)_sem::wait_n(id, n);
+                break;
+            }
+            case CALL_SEM_SIGNAL_N: {
+                _sem*    id = (_sem*)regs[11];
+                unsigned n  = (unsigned)regs[12];
+                ret = (uint64)_sem::signal_n(id, n);
+                break;
+            }
+            case CALL_TIME_SLEEP: {
+                // STUB za 20p (nema pravog uspavljivanja - Task 4).
+                // Samo jednom ustupi procesor da ne bude potpuni no-op.
+                _thread::dispatch();
+                ret = 0;
                 break;
             }
             case CALL_GETC: {

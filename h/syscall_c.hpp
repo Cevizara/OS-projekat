@@ -27,9 +27,20 @@ int  thread_create(thread_t* handle, void (*start_routine)(void*), void* arg);
 void thread_dispatch();
 int  thread_exit();
 
+// --- Semafori ---
+int sem_open(sem_t* handle, unsigned init);
+int sem_close(sem_t handle);
+int sem_wait(sem_t id);
+int sem_signal(sem_t id);
+int sem_wait_n(sem_t id, unsigned n);
+int sem_signal_n(sem_t id, unsigned n);
+
 // --- Konzola (preko console.lib) ---
 char getc();
 void putc(char c);
+
+// --- Vreme (stub za 20p; postoji radi povezivanja C++ Thread::sleep) ---
+int time_sleep(time_t t);
 
 
 #endif // SYSCALL_C_HPP
