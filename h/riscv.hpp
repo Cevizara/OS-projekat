@@ -22,6 +22,9 @@ public:
     // razlog ulaska u prekidnu rutinu
     static uint64 r_scause();
 
+    // dodatna informacija o izuzetku (npr. adresa greske) - za dijagnostiku
+    static uint64 r_stval();
+
     // saved pc - adresa na koju sret vraca
     static uint64 r_sepc();
     static void   w_sepc(uint64 sepc);
@@ -61,6 +64,12 @@ inline uint64 Riscv::r_sepc() {
     uint64 volatile sepc;
     __asm__ volatile ("csrr %[sepc], sepc" : [sepc] "=r"(sepc));
     return sepc;
+}
+
+inline uint64 Riscv::r_stval() {
+    uint64 volatile stval;
+    __asm__ volatile ("csrr %[stval], stval" : [stval] "=r"(stval));
+    return stval;
 }
 
 inline void Riscv::w_sepc(uint64 sepc) {

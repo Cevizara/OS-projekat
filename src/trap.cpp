@@ -115,8 +115,14 @@ extern "C" void handleTrap(uint64* regs) {
         console_handler();                        // iz console.lib (za getc/putc kasnije)
     }
     else {
-        kernelprintString("[trap] NEPOZNAT uzrok, scause=");
-        kernelprintInteger(scause);
-        kernelprintString("\n");
+        // Neobradjen izuzetak (npr. ilegalna instrukcija scause=2 - Test 7).
+        // Ispisi dijagnostiku i ZAUSTAVI emulator. Ovo NIJE regularan zavrsetak
+        // (program je pukao), pa zadovoljava ocekivanje Testa 7.
+        kernelprintString("[trap] neobradjen izuzetak\n");
+        kernelprintString("  scause="); kernelprintInteger(scause);            kernelprintString("\n");
+        kernelprintString("  sepc=");   kernelprintInteger(sepc);              kernelprintString("\n");
+        kernelprintString("  stval=");  kernelprintInteger(Riscv::r_stval());  kernelprintString("\n");
+        *(volatile uint32*)0x100000 = 0x5555;   // zaustavi QEMU
+        while (true) {}                          // osiguranje dok se ne ugasi
     }
 }
